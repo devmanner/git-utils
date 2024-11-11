@@ -23,7 +23,8 @@ CURL="curl -s -u $USER:$PAT $HEADER"
 
 LIST_PROJS="https://dev.azure.com/$ORG/_apis/projects?api-version=2.0"
 
-for proj in $($CURL $LIST_PROJS | jq -r '.value[].name'); do
+$CURL $LIST_PROJS | jq -r '.value[].name' | while read -r p; do
+    proj=$(printf %s "$p" | jq -sRr @uri)
     LIST_REPOS="https://dev.azure.com/$ORG/$proj/_apis/git/repositories?api-version=7.0"
     for repo in $($CURL $LIST_REPOS | jq -r '.value[].sshUrl'); do
         echo $repo
