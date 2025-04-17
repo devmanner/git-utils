@@ -1,23 +1,20 @@
 #!/bin/bash
 
-if [ $# != 2 -a $# != 3 ]; then
-    echo "Usage: $0 firstname.lastname@domain.tld organisation [skip-to]"
+if [ $# != 0 -a $# != 1 ]; then
+    echo "Usage: $0 [skip-to]"
+    echo "Scan folder structure for repos and run gitleaks on those. Use skip-to to avoid scanning all repos..."
     exit -1
 fi
 
-ID=$1
-ORG=$2
-
-if [ $# == 3 ]; then
-    SKIP_TO=$3
+if [ $# == 1 ]; then
+    SKIP_TO=$1
 else
     SKIP_TO=""
 fi
 
-AZURE_LIST_ALL_REPOS=$(dirname $(readlink -f $0))/azure_list_all_repos.sh
-
-for repo in $($AZURE_LIST_ALL_REPOS $ID $ORG | sort); do
-    dirname=$(basename $repo)
+for git_dir in $(find . -type d -name '.git'); do
+    dirname=$(dirname $git_dir)
+    repo=$(basename $dirname)
 
     if [ "$SKIP_TO" != "" ]; then
         if [ $dirname == $SKIP_TO ]; then
@@ -34,16 +31,9 @@ for repo in $($AZURE_LIST_ALL_REPOS $ID $ORG | sort); do
         echo "# Checking repo $repo"
         echo "#####################################################"
 
-        if [ -d $dirname ]; then
-            echo "# Pulling repo in $dirname"
-            cd $dirname && git pull
-            cd - > /dev/null
-        else
-            echo "# Cloning repo"
-            git clone $repo
-        fi
         logfile=$(basename $repo).gitleaks.log
-        gitleaks detect -v -s $dirname -f json -r $logfile
+#        gitleaks detect -v -s $dirname -f json -r $logfile
+        docker run -v ./$dirname:/path -v .:/output zricethezav/gitleaks:latest detect -v -r /output/$logfile --source /path
         if [ $? = 1 ]; then
             echo "Found leaks in "$dirname
             yesno=""
